@@ -12,9 +12,8 @@ def get_repo_files(repo_owner, repo_name):
     # 토큰이 있으면 헤더에 추가하고, 없으면 빈 상태로 보냅니다.
     headers = {"Authorization": f"token {github_token}"} if github_token else {}
     
-    response = requests.get(url, headers=headers)
+    response = requests.get(url,headers=headers)
     
-    # [수정된 부분] status_status -> status_code
     if response.status_code == 200:
         files = response.json()
         print(f"\n--- [{repo_name}] 파일 목록 ---")
@@ -27,4 +26,4 @@ def get_repo_files(repo_owner, repo_name):
 # 테스트 실행
 if __name__ == "__main__":
     # 구글의 공개 저장소로 테스트해봅니다.
-    get_repo_files("google", "googletest")
+    get_repo_files("Melonbbbang", "gh-repo-analyzer")
