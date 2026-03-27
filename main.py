@@ -15,16 +15,21 @@ def get_all_files_recursive(owner, repo, path="", token=None):
     headers = {"Authorization": f"token {token}"} if token else {}
     response = requests.get(url, headers=headers)
     
+    exclude_dirs = ['test', 'docs', 'node_modules', 'venv', 'dist', 'build'] # 제외할 폴더들
+
     files = []
     if response.status_code == 200:
         items = response.json()
         for item in items:
+            # 1. 제외 폴더인지 확인
+            if any(ex in item['path'].lower() for ex in exclude_dirs):
+                continue
+                
             if item['type'] == 'dir':
-                # 폴더를 발견하면 자기 자신을 다시 호출하여 안으로 들어감
                 files.extend(get_all_files_recursive(owner, repo, item['path'], token))
             elif item['type'] == 'file':
-                # 분석하고 싶은 텍스트 기반 확장자만 필터링
-                if item['name'].endswith(('.py', '.js', '.md', '.html', '.css', '.txt', '.json')):
+                # 2. 핵심 확장자만 남기기 (필요한 것만 골라 쓰세요!)
+                if item['name'].endswith(('.py', '.js', '.ts', '.go', '.cpp')):
                     files.append(item)
     return files
 
@@ -75,3 +80,38 @@ def save_analysis(repo_name, file_path, analysis_text):
     
     print(f"✅ 저장 완료: {final_path}")
     return base_dir
+
+
+def generate_final_summary(repo_name, all_analyses):
+    """모든 파일의 분석 결과를 합쳐서 최종 가이드라인 생성"""
+    
+    combined_context = "\n\n".join(all_analyses)
+    
+    prompt = f"""
+    당신은 이 프로젝트의 리드 개발자입니다. 다음 분석 데이터를 바탕으로 
+    전체적인 프로그램 목적과 사용법을 요약한 [Final_Project_Guide.txt] 내용을 작성하세요.
+    
+    [분석 데이터]
+    {combined_context[:10000]}
+    """
+
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt
+    )
+    
+    # 1. 저장 경로 설정
+    target_folder = r"C:/Users/USER/OneDrive/Desktop/Project B 예시/analysis_results"
+    repo_dir = os.path.join(target_folder, repo_name)
+    
+    # ⭐ 2. [추가] 폴더가 없으면 생성 (이 부분이 빠져서 오류가 났던 겁니다!)
+    if not os.path.exists(repo_dir):
+        os.makedirs(repo_dir)
+    
+    final_path = os.path.join(repo_dir, "Final_Project_Guide.txt")
+    
+    # 3. 이제 안전하게 저장
+    with open(final_path, "w", encoding="utf-8") as f:
+        f.write(response.text)
+    
+    return final_path
